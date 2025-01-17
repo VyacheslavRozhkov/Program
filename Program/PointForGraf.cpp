@@ -4,7 +4,6 @@
 #include <random>
 #include <algorithm>
 #include <limits>
-#include <set>
 #include <map>
 #include <queue>
 #include <fstream>
@@ -13,7 +12,7 @@
 const int NUM_POINTS = 100; // Количество точек
 const double RADIUS = 100.0; // Радиус окружности
 const double DISTANCE_COST = 10.0; // Стоимость единицы расстояния
-//Число ПИ
+// Число ПИ
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif 
@@ -71,40 +70,46 @@ buildGraph(const std::vector<Point>& points) {
     return graph;
 }
 
-// Жадный алгоритм для решения задачи коммивояжера (приближённое решение)
-std::vector<int> solveTSP(const std::map<int, std::vector<std::pair<int, double>>>& graph, int start, int end) {
-    std::vector<int> path;
-    std::set<int> visited;
-    int current = start;
-    double totalCost = 0.0;
+// Функция для поиска кратчайшего пути с использованием алгоритма Дейкстры
+std::vector<int> findShortestPath(const std::map<int, std::vector<std::pair<int, double>>>& graph, int start, int end) {
+    std::map<int, double> minDistance;
+    std::map<int, int> previous;
+    std::priority_queue<std::pair<double, int>, std::vector<std::pair<double, int>>, std::greater<>> pq;
 
-    while (visited.size() < graph.size()) {
-        visited.insert(current);
-        path.push_back(current);
+    // Инициализация
+    for (const auto& [node, _] : graph) {
+        minDistance[node] = std::numeric_limits<double>::max();
+    }
+    minDistance[start] = 0;
+    pq.push({0, start});
 
-        double minDistance = std::numeric_limits<double>::max();
-        int nextNode = -1;
+    while (!pq.empty()) {
+        auto [currentDistance, currentNode] = pq.top();
+        pq.pop();
 
-        // Находим ближайшую не посещённую точку
-        for (const auto& [neighbor, cost] : graph.at(current)) {
-            if (visited.find(neighbor) == visited.end() && cost < minDistance) {
-                minDistance = cost;
-                nextNode = neighbor;
-            }
+        // Если достигли конечной точки
+        if (currentNode == end) {
+            break;
         }
 
-        if (nextNode == -1) break; // Если больше нет доступных точек
-        totalCost += minDistance;
-        current = nextNode;
+        for (const auto& [neighbor, cost] : graph.at(currentNode)) {
+            double newDistance = currentDistance + cost;
+            if (newDistance < minDistance[neighbor]) {
+                minDistance[neighbor] = newDistance;
+                previous[neighbor] = currentNode;
+                pq.push({newDistance, neighbor});
+            }
+        }
     }
 
-    // Добавляем конечную точку
-    if (current != end) {
-        path.push_back(end);
-        totalCost += distance(Point{0, 0, current}, Point{0, 0, end});
+    // Восстановление пути
+    std::vector<int> path;
+    for (int at = end; at != start; at = previous[at]) {
+        path.push_back(at);
     }
+    path.push_back(start);
+    std::reverse(path.begin(), path.end());
 
-    std::cout << "Total cost: " << totalCost * DISTANCE_COST << " USD" << std::endl;
     return path;
 }
 
@@ -138,13 +143,15 @@ int main() {
     // Построение графа
     auto graph = buildGraph(points);
 
-    // Ввод конечной точки
-    int endPoint;
-    std::cout << "Enter the end point (0 to " << NUM_POINTS - 1 << "): ";
+    // Ввод стартовой и конечной точки
+    int startPoint, endPoint;
+    std::cout << "Enter the start point (0 to " << NUM_POINTS - 1 << "): "; 
+    std::cin >> startPoint; 
+    std::cout << "Enter the end point (0 to " << NUM_POINTS - 1 << "): "; 
     std::cin >> endPoint;
 
-    // Решение задачи
-    auto path = solveTSP(graph, 0, endPoint);
+    // Поиск кратчайшего пути
+    auto path = findShortestPath(graph, startPoint, endPoint);
 
     // Визуализация графа
     visualizeGraph(points, graph, path);
